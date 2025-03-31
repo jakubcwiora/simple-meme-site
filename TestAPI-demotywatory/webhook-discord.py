@@ -3,6 +3,7 @@ from time import sleep
 from flask import Flask, request, jsonify
 import requests
 
+webhook = "your.url"
 
 # URL of targeted website
 demot = "https://demotywatory.pl/losuj"
