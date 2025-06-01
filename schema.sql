@@ -4,7 +4,7 @@ USE memes;
 
 CREATE TABLE IF NOT EXISTS memes (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255),
+    name TEXT,
     url TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
