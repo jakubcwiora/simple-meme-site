@@ -1,4 +1,5 @@
 .venv
+.gitignore
 dockerfile
 docker-compose.yml
 __pycache__
