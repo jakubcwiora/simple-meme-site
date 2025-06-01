@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meme Site</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>😂 Meme Gallery</h1>
+        <a class="button" href="/add">Add a Meme</a>
+
+        <div class="gallery">
+            {% for meme in memes %}
+                <div class="meme-card">
+                    <img src="{{ meme.url }}" alt="{{ meme.name }}">
+                    <p>{{ meme.name }}</p>
+                    <small>{{ meme.created_at }}</small>
+    
+                    <form action="{{ url_for('delete_meme', meme_id=meme.id) }}" method="post">
+                        <button type="submit" class="remove-button">Remove</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
