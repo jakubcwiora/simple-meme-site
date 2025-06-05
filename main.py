@@ -3,18 +3,34 @@ from flask import Flask, render_template, redirect, url_for
 from scraper import getImages
 from datetime import datetime
 import mysql.connector
+import os
 
 app = Flask(__name__)
 
 db_config = {
-    'host': 'localhost',
-    'user': 'user',
-    'password': 'password',
-    'database': 'memes'
+    'host': os.environ['DB_HOST'],
+    'user': os.environ['DB_USER'],
+    'password': os.environ['DB_PASSWORD'],
+    'database': os.environ['DB_NAME']
 }
+
+def init_db():
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    with open("schema.sql") as f:
+        cursor.execute(f.read(), multi=True)
+    connection.commit()
+    connection.close()
+
+
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
+
+# Run once before the first request
+@app.before_first_request
+def initialize():
+    init_db()
 
 # Home page - showing all the memes
 @app.route("/")

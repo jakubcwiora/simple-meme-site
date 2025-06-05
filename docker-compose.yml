@@ -1,0 +1,28 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: yourRootPasswordHere
+      MYSQL_DATABASE: memes
+      MYSQL_USER: meme_site
+      MYSQL_PASSWORD: yourUserPassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: db
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: memes
+    depends_on:
+      - db
+
+volumes:
+  db_data:
