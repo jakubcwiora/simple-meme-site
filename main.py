@@ -1,11 +1,12 @@
 
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, g
 from scraper import getImages
 from datetime import datetime
 import mysql.connector
 import os
 
 app = Flask(__name__)
+db_initialized = False
 
 db_config = {
     'host': os.environ['DB_HOST'],
@@ -18,19 +19,26 @@ def init_db():
     connection = get_db_connection()
     cursor = connection.cursor()
     with open("schema.sql") as f:
-        cursor.execute(f.read(), multi=True)
+        sql_commands = f.read().split(';')  # split by semicolon
+        
+        for command in sql_commands:
+            command = command.strip()
+            if command:
+                cursor.execute(command)
     connection.commit()
+    cursor.close()
     connection.close()
-
 
 
 def get_db_connection():
     return mysql.connector.connect(**db_config)
 
 # Run once before the first request
-@app.before_first_request
+@app.before_request
 def initialize():
-    init_db()
+    if not hasattr(g, 'db_initialized'):
+        init_db()
+        db_initialized = True
 
 # Home page - showing all the memes
 @app.route("/")
@@ -70,7 +78,7 @@ def delete_meme(meme_id):
     return redirect(url_for('index'))
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
 
 
