@@ -1,28 +1,34 @@
-services:
-  db:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: yourRootPasswordHere
-      MYSQL_DATABASE: memes
-      MYSQL_USER: meme_site
-      MYSQL_PASSWORD: yourUserPassword
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
+version: '3.8'
 
+services:
   web:
     build: .
     ports:
       - "5000:5000"
     environment:
-      DB_HOST: db
-      DB_USER: user
-      DB_PASSWORD: password
-      DB_NAME: memes
+      - DB_HOST=db
+      - DB_USER=memeuser
+      - DB_PASSWORD=memepass
+      - DB_NAME=memes
     depends_on:
       - db
+    volumes:
+      - .:/app
+    restart: always
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=memes
+      - MYSQL_USER=memeuser
+      - MYSQL_PASSWORD=memepass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
 
 volumes:
-  db_data:
+  mysql_data:
