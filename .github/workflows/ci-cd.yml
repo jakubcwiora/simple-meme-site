@@ -34,7 +34,7 @@ jobs:
 
     - name: Start database with Docker Compose
       run: |
-        cat > docker-compose.test.yml << EOF
+        cat > docker-compose.test.yml << 'EOF'
         services:
           mysql:
             image: mysql:8.0
