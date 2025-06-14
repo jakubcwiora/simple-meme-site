@@ -33,7 +33,6 @@ jobs:
 
     - name: Start database with Docker Compose
       run: |
-        # Create a temporary docker-compose file for testing
         cat > docker-compose.test.yml << EOF
         version: '3'
         services:
@@ -77,7 +76,6 @@ jobs:
     
     - name: Run tests
       run: |
-        # Add your test commands here
         python -m pytest tests/ || echo "No tests found"
       
     - name: Clean up Docker resources
