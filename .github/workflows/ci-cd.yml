@@ -47,7 +47,7 @@ jobs:
             ports:
               - 3306:3306
             healthcheck:
-              test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+               test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD }"]
               interval: 5s
               timeout: 5s
               retries: 5
@@ -74,7 +74,7 @@ jobs:
         MYSQL_PWD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
       run: |
         if [ -f schema.sql ]; then
-          cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql -uroot -p ${MYSQL_ROOT_PASSWORD} ${DB_NAME} 
+          cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} 
 
         else
           echo "Warning: schema.sql not found"
