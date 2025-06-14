@@ -88,6 +88,9 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/feature/containerized-mysql'
     steps:
     - uses: actions/checkout@v3
@@ -107,7 +110,7 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io/${{ github.repository }}:containerized
+        tags: ghcr.io/jakubcwiora/${{ github.repository }}:containerized
         build-args: |
           DB_HOST=db
           DB_USER=${{ secrets.DB_USER }}
