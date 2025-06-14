@@ -5,15 +5,18 @@ from time import sleep
 from datetime import datetime
 import mysql.connector
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 db_initialized = False
 
 db_config = {
-    'host': os.environ['DB_HOST'],
-    'user': os.environ['DB_USER'],
-    'password': os.environ['DB_PASSWORD'],
-    'database': os.environ['DB_NAME']
+    'host': os.environ.get('DB_HOST'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD'),
+    'database': os.environ.get('DB_NAME')
 }
 
 def init_db():
