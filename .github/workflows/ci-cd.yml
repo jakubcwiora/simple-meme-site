@@ -35,7 +35,6 @@ jobs:
     - name: Start database with Docker Compose
       run: |
         cat > docker-compose.test.yml << EOF
-        version: '3'
         services:
           mysql:
             image: mysql:8.0
@@ -58,7 +57,7 @@ jobs:
       run: |
        echo "Waiting for MySQL to be ready..."
         timeout=60
-        until docker compose -f docker-compose.test.yml exec -T mysql mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD} --silent || [ $timeout -le 0 ]; do
+        until docker compose -f docker-compose.test.yml exec -T mysql mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD} --silent || [ $timeout -le 0 ]; do
           sleep 1
           ((timeout--))
         done
@@ -70,7 +69,7 @@ jobs:
     - name: Initialize database
       run: |
         if [ -f schema.sql ]; then
-          docker compose -f docker-compose.test.yml exec -T mysql mysql -u${DB_USER} -p${DB_PASSWORD} ${DB_NAME} < schema.sql
+          docker compose -f docker-compose.test.yml exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} < schema.sql
         else
           echo "Warning: schema.sql not found"
         fi
