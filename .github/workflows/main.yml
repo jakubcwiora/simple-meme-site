@@ -113,7 +113,7 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io${{ github.repository }}:containerized
+        tags: ghcr.io/${{ github.repository }}:containerized
         build-args: |
           DB_HOST=db
           DB_USER=${{ secrets.DB_USER }}
