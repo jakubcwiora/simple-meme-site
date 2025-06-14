@@ -45,7 +45,7 @@ else
 fi
 
 # Determine correct repository name
-REPO_NAME="jakubcwiora/jakubcwiora/simple-meme-site"
+REPO_NAME="jakubcwiora/simple-meme-site"
 
 # Check for GitHub Container Registry authentication
 if ! docker pull ghcr.io/${REPO_NAME}:containerized &>/dev/null; then
