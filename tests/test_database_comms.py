@@ -3,7 +3,7 @@ import os
 import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from main import app, get_db_connection
-import app as app_module
+import main as app_module
 
 def false_getImages():
     return [("http://test.url/test.jpg", "test.jpg")]
@@ -20,7 +20,7 @@ def client():
     with app.test_client() as client:
         connection = get_db_connection()
         cursor = connection.cursor()
-        cursor.execute('DELETE * FROM memes;')
+        cursor.execute('DELETE FROM memes;')
         connection.commit()
         cursor.close()
         connection.close()
@@ -38,8 +38,8 @@ def count_memes():
 
 def get_meme_by_name(name):
     connection = get_db_connection()
-    cursor = connection.cursor()
-    cursor.execute('SELECT * FROM memes WHERE name = %s', (name, ))
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM memes WHERE name = %s;', (name, ))
     result = cursor.fetchone()
     cursor.close()
     connection.close()
@@ -60,7 +60,7 @@ def test_remove_meme(client):
     response = client.get('/add', follow_redirects = True)
     assert response.status_code == 200
     meme = get_meme_by_name('test.jpg')
-    response = client.post(f'/delete/{meme[id]}', follow_redirects = True)
+    response = client.post(f'/delete/{meme["id"]}', follow_redirects = True)
     assert response.status_code == 200 
     # Ensure the deletion
     assert get_meme_by_name('test.jpg') is None
