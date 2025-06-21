@@ -9,15 +9,19 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      DB_HOST: localhost
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
-     
-      
+           
     steps:
     - uses: actions/checkout@v3
+
+    - name: Set up database credentials
+      run: |
+        echo "TEST_DB_USER=test_user" >> $GITHUB_ENV
+        echo "TEST_DB_NAME=test_db" >> $GITHUB_ENV
+        echo "TEST_DB_HOST=localhost" >> $GITHUB_ENV
+        RANDOM_PASSWORD=$(openssl rand -base64 12)
+        RANDOM_ROOT_PASSWORD=$(openssl rand -base64 12)
+        echo "TEST_DB_PASSWORD=$RANDOM_PASSWORD" >> $GITHUB_ENV
+        echo "TEST_MYSQL_ROOT_PASSWORD=$RANDOM_ROOT_PASSWORD" >> $GITHUB_ENV
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -40,10 +44,10 @@ jobs:
             image: mysql:8.0
             command: --default-authentication-plugin=mysql_native_password
             environment:
-              MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-              MYSQL_DATABASE: ${DB_NAME}
-              MYSQL_USER: ${DB_USER}
-              MYSQL_PASSWORD: ${DB_PASSWORD}
+              MYSQL_ROOT_PASSWORD: ${TEST_MYSQL_ROOT_PASSWORD}
+              MYSQL_DATABASE: ${TEST_DB_NAME}
+              MYSQL_USER: ${TEST_DB_USER}
+              MYSQL_PASSWORD: ${TEST_DB_PASSWORD}
             ports:
               - 3306:3306
             healthcheck:
@@ -70,8 +74,6 @@ jobs:
         sleep 10
     
     - name: Initialize database
-      env:
-        MYSQL_PWD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
       run: |
         if [ -f schema.sql ]; then
           cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} 
