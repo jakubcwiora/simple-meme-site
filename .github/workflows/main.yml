@@ -93,12 +93,19 @@ jobs:
     
     - name: Initialize database
       run: |
-        if [ -f schema.sql ]; then
-          cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} 
-
-        else
-          echo "Warning: schema.sql not found"
-        fi
+         # Wait for MySQL to be fully ready
+         echo "Waiting for MySQL to be ready..."
+         sleep 10
+         
+         if [ -f schema.sql ]; then
+           cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql \
+             -uroot \
+             -p${TEST_MYSQL_ROOT_PASSWORD} \
+             ${TEST_DB_NAME}
+           echo "Schema imported successfully"
+         else
+           echo "Warning: schema.sql not found"
+         fi
     
     - name: Run tests
       run: |
