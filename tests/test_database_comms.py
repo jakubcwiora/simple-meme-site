@@ -16,9 +16,9 @@ def patch_getImages(monkeypatch):
 @pytest.fixture
 def client():
     os.environ["DB_NAME"] = os.environ.get("TEST_DB_NAME", "test_db") # defaults to 'test_db'
-    os.environ["DB_USER"] = os.environ.get("TEST_DB_USER", "test_user") # defaults to 'test_db'
-    os.environ["DB_PASSWORD"] = os.environ.get("TEST_DB_PASSWORD", "") # defaults to 'test_db'
-    os.environ["DB_HOST"] = os.environ.get("TEST_DB_HOST", "localhost") # defaults to 'test_db'
+    os.environ["DB_USER"] = os.environ.get("TEST_DB_USER", "test_user") # defaults to 'test_user'
+    os.environ["DB_PASSWORD"] = os.environ.get("TEST_DB_PASSWORD", "") # defaults to ''
+    os.environ["DB_HOST"] = os.environ.get("TEST_DB_HOST", "localhost") # defaults to 'localhost'
    
     app.config['TESTING'] = True
     with app.test_client() as client:

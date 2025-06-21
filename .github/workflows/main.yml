@@ -15,13 +15,32 @@ jobs:
 
     - name: Set up database credentials
       run: |
+        echo "Starting database credential setup..."
         echo "TEST_DB_USER=test_user" >> $GITHUB_ENV
+        echo "Added TEST_DB_USER"
+        
         echo "TEST_DB_NAME=test_db" >> $GITHUB_ENV
+        echo "Added TEST_DB_NAME"
+        
         echo "TEST_DB_HOST=localhost" >> $GITHUB_ENV
+        echo "Added TEST_DB_HOST"
+        
+        echo "Generating random password..."
         RANDOM_PASSWORD=$(openssl rand -base64 12)
+        echo "Password generated"
+        
+        echo "Generating root password..."
         RANDOM_ROOT_PASSWORD=$(openssl rand -base64 12)
+        echo "Root password generated"
+        
         echo "TEST_DB_PASSWORD=$RANDOM_PASSWORD" >> $GITHUB_ENV
+        echo "Added TEST_DB_PASSWORD"
+        
         echo "TEST_MYSQL_ROOT_PASSWORD=$RANDOM_ROOT_PASSWORD" >> $GITHUB_ENV
+        echo "Added TEST_MYSQL_ROOT_PASSWORD"
+        
+        echo "Completed database credential setup!"
+
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -75,13 +94,27 @@ jobs:
     
     - name: Initialize database
       run: |
-        if [ -f schema.sql ]; then
-          cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} ${DB_NAME} 
+         # Wait for MySQL to be fully ready
+         echo "Waiting for MySQL to be ready..."
+         sleep 10
+         
+         if [ -f schema.sql ]; then
+           cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql \
+             -uroot \
+             -p${TEST_MYSQL_ROOT_PASSWORD} \
+             ${TEST_DB_NAME}
+           echo "Schema imported successfully"
+         else
+           echo "Warning: schema.sql not found"
+         fi
 
-        else
-          echo "Warning: schema.sql not found"
-        fi
-    
+    - name: Set application database variables for tests
+      run: |
+        echo "DB_USER=$TEST_DB_USER" >> $GITHUB_ENV
+        echo "DB_PASSWORD=$TEST_DB_PASSWORD" >> $GITHUB_ENV
+        echo "DB_NAME=$TEST_DB_NAME" >> $GITHUB_ENV
+        echo "DB_HOST=$TEST_DB_HOST" >> $GITHUB_ENV
+        
     - name: Run tests
       run: |
         python -m pytest tests/ || echo "No tests found"
@@ -109,7 +142,7 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-
+        
     - name: Build and push
       uses: docker/build-push-action@v4
       with:
