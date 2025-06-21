@@ -40,7 +40,6 @@ jobs:
         echo "Added TEST_MYSQL_ROOT_PASSWORD"
         
         echo "Completed database credential setup!"
-
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -107,14 +106,12 @@ jobs:
          else
            echo "Warning: schema.sql not found"
          fi
-
     - name: Set application database variables for tests
       run: |
         echo "DB_USER=$TEST_DB_USER" >> $GITHUB_ENV
         echo "DB_PASSWORD=$TEST_DB_PASSWORD" >> $GITHUB_ENV
         echo "DB_NAME=$TEST_DB_NAME" >> $GITHUB_ENV
         echo "DB_HOST=$TEST_DB_HOST" >> $GITHUB_ENV
-        
     - name: Run tests
       run: |
         python -m pytest tests/ || echo "No tests found"
@@ -142,7 +139,7 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-        
+
     - name: Build and push
       uses: docker/build-push-action@v4
       with:
