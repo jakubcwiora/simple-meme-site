@@ -117,25 +117,28 @@ jobs:
 
     - name: Deploy to server
       run: |
+        # First, create the .env file locally (was missing)
+        cat > .env << EOL
+        DB_NAME=${{ secrets.DB_NAME }}
+        DB_USER=${{ secrets.DB_USER }}
+        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+        DB_HOST=mysql
+        MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+        EOL
+        
+        # Create deployment directory with correct permissions
+        ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} "mkdir -p /opt/deployment || sudo mkdir -p /opt/deployment && sudo chown -R ${{ secrets.SERVER_USERNAME }}:${{ secrets.SERVER_USERNAME }} /opt/deployment"
+        
         # Copy deployment files to server
-        scp -o StrictHostKeyChecking=no docker-compose.yml .env schema.sql ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:/opt/deployment/
+        scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no docker-compose.yml .env schema.sql ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:/opt/deployment/
         
         # Save the image and transfer to server
         docker save myapp:${{ github.sha }} | gzip > myapp.tar.gz
-        scp -o StrictHostKeyChecking=no myapp.tar.gz ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:/opt/deployment/
+        scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no myapp.tar.gz ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:/opt/deployment/
         
         # SSH to server and deploy
-        ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
+        ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
           cd /opt/deployment
-          
-          # Create .env file with database credentials
-          cat > .env << EOL
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          DB_HOST=mysql
-          MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-          EOL
           
           # Load the Docker image
           gunzip -c myapp.tar.gz | docker load
@@ -149,3 +152,4 @@ jobs:
           # Clean up
           rm myapp.tar.gz
         ENDSSH
+    
