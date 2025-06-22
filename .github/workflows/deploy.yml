@@ -99,9 +99,8 @@ jobs:
              mysql-data:
            EOL
            
-           # Extract schema.sql from repository if it exists, or create minimal version
-           if [ -f "schema.sql" ]; then
-           else
+           # Extract schema.sql from repository if it exists, or stop the pipeline
+           if [ ! -f "schema.sql" ]; then
               echo "Please provide schema.sql"
               exit 1 
            fi
