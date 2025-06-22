@@ -117,52 +117,44 @@ jobs:
 
     - name: Deploy to server
       run: |
-        # First, create the .env file locally (was missing)
-        cat > .env << EOL
-        DB_NAME=${{ secrets.DB_NAME }}
-        DB_USER=${{ secrets.DB_USER }}
-        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-        DB_HOST=mysql
-        MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
-        EOL
-        
-        # Create deployment directory with correct permissions (on server)
-        ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} "mkdir -p /opt/deployment || mkdir -p ~/deployment_temp"
-        
-        # Copy deployment files to server (to user's home directory if /opt/deployment fails)
-        scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no docker-compose.yml .env schema.sql ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:~/deployment_temp/
-        
-        # Save the image and transfer to server
-        docker save myapp:${{ github.sha }} | gzip > myapp.tar.gz
-        scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no myapp.tar.gz ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:~/deployment_temp/
-        
-        # SSH to server and handle the deployment
-        ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
-          # Try to use /opt/deployment if we have access, otherwise use ~/deployment
-          if [ -w "/opt/deployment" ]; then
-            DEPLOY_DIR="/opt/deployment"
-          else
-            DEPLOY_DIR="$HOME/deployment"
-            mkdir -p $DEPLOY_DIR
-            # Move files from temp directory to deployment directory
-            cp -r ~/deployment_temp/* $DEPLOY_DIR/
-            rm -rf ~/deployment_temp
-          fi
-          
-          cd $DEPLOY_DIR
-          
-          # Load the Docker image
-          gunzip -c myapp.tar.gz | docker load
-          
-          # Update image tag in docker-compose.yml
-          sed -i "s|image: myapp:.*|image: myapp:${{ github.sha }}|g" docker-compose.yml
-          
-          # Deploy with Docker Compose
-          docker-compose up -d
-          
-          # Clean up
-          rm myapp.tar.gz
-        ENDSSH
+         # Create the .env file locally with secrets
+         cat > .env << EOL
+         DB_NAME=${{ secrets.DB_NAME }}
+         DB_USER=${{ secrets.DB_USER }}
+         DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+         DB_HOST=mysql
+         MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+         EOL
+         
+         # Copy all files to the deployment directory
+         scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no docker-compose.yml .env schema.sql ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:~/deployment/
+         
+         # Save and transfer the Docker image
+         docker save myapp:${{ github.sha }} | gzip > myapp.tar.gz
+         scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no myapp.tar.gz ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:~/deployment/
+         
+         # SSH to server and deploy - NO quotes around ENDSSH to allow variable expansion
+         ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << ENDSSH
+           cd ~/deployment
+           
+           # Load the Docker image
+           gunzip -c myapp.tar.gz | docker load
+           
+           # Update image tag in docker-compose.yml
+           sed -i "s|image: myapp:.*|image: myapp:${{ github.sha }}|g" docker-compose.yml
+           
+           # Verify .env file contents (for debugging)
+           echo "Verifying .env file contents:"
+           cat .env
+           
+           # Deploy with Docker Compose
+           docker-compose up -d
+           
+           # Clean up
+           rm myapp.tar.gz
+         ENDSSH
+     
+
     
 
     
