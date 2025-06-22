@@ -101,10 +101,9 @@ jobs:
            
            # Extract schema.sql from repository if it exists, or create minimal version
            if [ -f "schema.sql" ]; then
-             cp schema.sql ./
            else
-             echo "-- Auto-generated schema file" > schema.sql
-             echo "CREATE TABLE IF NOT EXISTS memes (id INT AUTO_INCREMENT PRIMARY KEY, url VARCHAR(255), top_text VARCHAR(255), bottom_text VARCHAR(255));" >> schema.sql
+             echo "Please provide schema.sql"
+             exit 1 
            fi
 
     - name: Deploy to server
