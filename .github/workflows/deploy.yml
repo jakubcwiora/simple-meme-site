@@ -102,8 +102,8 @@ jobs:
            # Extract schema.sql from repository if it exists, or create minimal version
            if [ -f "schema.sql" ]; then
            else
-             echo "Please provide schema.sql"
-             exit 1 
+              echo "Please provide schema.sql"
+              exit 1 
            fi
 
     - name: Deploy to server
