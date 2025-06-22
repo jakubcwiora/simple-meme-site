@@ -86,7 +86,7 @@ jobs:
                  - DB_PASSWORD=\${DB_PASSWORD}
                  - DB_HOST=mysql
                ports:
-                 - "8080:8080"
+                 - "5000:5000"
            
              mysql:
                image: mysql:8.0
