@@ -62,8 +62,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -t rsa yourdomain.com >> ~/.ssh/known_hosts
-
+          ssh-keyscan -t rsa ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+    - name: Test SSH connection
+      run: |
+        ssh -v -i ~/.ssh/id_rsa ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} "echo Connection successful"
+    
     - name: Generate deployment files
       run: |
            # Generate docker-compose.yml
