@@ -1,18 +1,22 @@
 
 from flask import Flask, render_template, redirect, url_for, g
 from scraper import getImages
+from time import sleep
 from datetime import datetime
 import mysql.connector
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 db_initialized = False
 
 db_config = {
-    'host': os.environ['DB_HOST'],
-    'user': os.environ['DB_USER'],
-    'password': os.environ['DB_PASSWORD'],
-    'database': os.environ['DB_NAME']
+    'host': os.environ.get('DB_HOST'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD'),
+    'database': os.environ.get('DB_NAME')
 }
 
 def init_db():
@@ -31,7 +35,18 @@ def init_db():
 
 
 def get_db_connection():
-    return mysql.connector.connect(**db_config)
+    max_retries = 5
+    retry_delay = 2
+
+    for attempt in range(max_retries):
+        try:
+            return mysql.connector.connect(**db_config)
+        except mysql.connector.Error as err:
+            if attempt < max_retries - 1:
+                print(f'Database connection failed (attempt {attempt + 1}/{max_retries}): {err}')
+                sleep(retry_delay)
+            else:
+                raise
 
 # Run once before the first request
 @app.before_request

@@ -1,0 +1,160 @@
+name: Deploying the project 
+
+on:
+  push:
+    branches: [feature/containerized-mysql]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
+    - name: Build Docker image
+      run: |
+        docker build -t myapp:${{ github.sha }} .
+        docker save myapp:${{ github.sha }} > myapp.tar
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-image
+        path: myapp.tar
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps: 
+    - uses: actions/checkout@v4
+    
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image
+        
+    - name: Load Docker image
+      run: |
+        docker load < myapp.tar
+
+    - name: Set up Tailscale
+      uses: tailscale/github-action@v3
+      with:
+        oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+        oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+        tags: tag:ci
+        use-cache: 'true'
+        version: latest
+
+    - name: Set up SSH key
+      run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+    - name: Test SSH connection
+      run: |
+        ssh -v -i ~/.ssh/id_ed25519 ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} "echo Connection successful"
+    
+    - name: Generate deployment files
+      run: |
+           # Generate docker-compose.yml
+           cat > docker-compose.yml << EOL
+           version: '3.8'
+           
+           services:
+             app:
+               image: myapp:${{ github.sha }}
+               restart: always
+               depends_on:
+                 mysql:
+                   condition: service_healthy
+               environment:
+                 - DB_NAME=\${DB_NAME}
+                 - DB_USER=\${DB_USER}
+                 - DB_PASSWORD=\${DB_PASSWORD}
+                 - DB_HOST=mysql
+               ports:
+                 - "5000:5000"
+           
+             mysql:
+               image: mysql:8.0
+               restart: always
+               environment:
+                 - MYSQL_DATABASE=\${DB_NAME}
+                 - MYSQL_USER=\${DB_USER}
+                 - MYSQL_PASSWORD=\${DB_PASSWORD}
+                 - MYSQL_ROOT_PASSWORD=\${MYSQL_ROOT_PASSWORD}
+               volumes:
+                 - mysql-data:/var/lib/mysql
+                 - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+               healthcheck:
+                 test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u\${DB_USER}", "-p\${DB_PASSWORD}"]
+                 interval: 10s
+                 timeout: 5s
+                 retries: 5
+           
+           volumes:
+             mysql-data:
+           EOL
+           
+           # Extract schema.sql from repository if it exists, or stop the pipeline
+           if [ ! -f "schema.sql" ]; then
+              echo "Please provide schema.sql"
+              exit 1 
+           fi
+
+    - name: Deploy to server
+      run: |
+         # Create the .env file locally with secrets
+         cat > .env << EOL
+         DB_NAME=${{ secrets.DB_NAME }}
+         DB_USER=${{ secrets.DB_USER }}
+         DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+         DB_HOST=mysql
+         MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+         EOL
+         
+         # Copy all files to the deployment directory
+         scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no docker-compose.yml .env schema.sql ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:~/deployment/
+         
+         # Save and transfer the Docker image
+         docker save myapp:${{ github.sha }} | gzip > myapp.tar.gz
+         scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no myapp.tar.gz ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:~/deployment/
+         
+         # SSH to server and deploy - NO quotes around ENDSSH to allow variable expansion
+         ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} << ENDSSH
+           cd ~/deployment
+           
+           # Load the Docker image
+           gunzip -c myapp.tar.gz | docker load
+           
+           # Update image tag in docker-compose.yml
+           sed -i "s|image: myapp:.*|image: myapp:${{ github.sha }}|g" docker-compose.yml
+           
+           # Verify .env file contents (for debugging)
+           echo "Verifying .env file contents:"
+           cat .env
+           
+           # Deploy with Docker Compose
+           docker-compose up -d
+           
+           # Clean up
+           rm myapp.tar.gz
+         ENDSSH
+     
+
+    
+
+    
