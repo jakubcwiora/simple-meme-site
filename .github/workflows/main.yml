@@ -2,21 +2,44 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [feature/containerized-mysql]
   pull_request:
-    branches: [ main, develop ]
+    branches: [feature/containerized-mysql]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      DB_HOST: localhost
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      
+           
     steps:
     - uses: actions/checkout@v3
+
+    - name: Set up database credentials
+      run: |
+        echo "Starting database credential setup..."
+        echo "TEST_DB_USER=test_user" >> $GITHUB_ENV
+        echo "Added TEST_DB_USER"
+        
+        echo "TEST_DB_NAME=test_db" >> $GITHUB_ENV
+        echo "Added TEST_DB_NAME"
+        
+        echo "TEST_DB_HOST=localhost" >> $GITHUB_ENV
+        echo "Added TEST_DB_HOST"
+        
+        echo "Generating random password..."
+        RANDOM_PASSWORD=$(openssl rand -base64 12)
+        echo "Password generated"
+        
+        echo "Generating root password..."
+        RANDOM_ROOT_PASSWORD=$(openssl rand -base64 12)
+        echo "Root password generated"
+        
+        echo "TEST_DB_PASSWORD=$RANDOM_PASSWORD" >> $GITHUB_ENV
+        echo "Added TEST_DB_PASSWORD"
+        
+        echo "TEST_MYSQL_ROOT_PASSWORD=$RANDOM_ROOT_PASSWORD" >> $GITHUB_ENV
+        echo "Added TEST_MYSQL_ROOT_PASSWORD"
+        
+        echo "Completed database credential setup!"
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -33,21 +56,20 @@ jobs:
 
     - name: Start database with Docker Compose
       run: |
-        # Create a temporary docker-compose file for testing
-        cat > docker-compose.test.yml << EOF
-        version: '3'
+        cat > docker-compose.test.yml << 'EOF'
         services:
           mysql:
             image: mysql:8.0
+            command: --default-authentication-plugin=mysql_native_password
             environment:
-              - MYSQL_ROOT_PASSWORD=\${{ secrets.MYSQL_ROOT_PASSWORD }}
-              - MYSQL_DATABASE=\${{ secrets.DB_NAME }}
-              - MYSQL_USER=\${{ secrets.DB_USER }}
-              - MYSQL_PASSWORD=\${{ secrets.DB_PASSWORD }}
+              MYSQL_ROOT_PASSWORD: ${TEST_MYSQL_ROOT_PASSWORD}
+              MYSQL_DATABASE: ${TEST_DB_NAME}
+              MYSQL_USER: ${TEST_DB_USER}
+              MYSQL_PASSWORD: ${TEST_DB_PASSWORD}
             ports:
               - 3306:3306
             healthcheck:
-              test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p\${{ secrets.MYSQL_ROOT_PASSWORD }}"]
+              test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
               interval: 5s
               timeout: 5s
               retries: 5
@@ -57,27 +79,41 @@ jobs:
     - name: Wait for database to be ready
       run: |
         echo "Waiting for MySQL to be ready..."
-        timeout=60
-        until docker compose -f docker-compose.test.yml exec -T mysql mysqladmin ping -h localhost -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} --silent || [ $timeout -le 0 ]; do
-          sleep 1
+        timeout=120
+        until docker exec $(docker ps -q --filter name=mysql) mysqladmin ping -h localhost --silent || [ $timeout -le 0 ]; do
+          sleep 2
           ((timeout--))
         done
         if [ $timeout -le 0 ]; then
           echo "MySQL failed to start in time"
           exit 1
         fi
+        echo "MySQL is ready!"
+        sleep 10
     
     - name: Initialize database
       run: |
-        if [ -f schema.sql ]; then
-          docker compose -f docker-compose.test.yml exec -T mysql mysql -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} < schema.sql
-        else
-          echo "Warning: schema.sql not found"
-        fi
-    
+         # Wait for MySQL to be fully ready
+         echo "Waiting for MySQL to be ready..."
+         sleep 10
+         
+         if [ -f schema.sql ]; then
+           cat schema.sql | docker compose -f docker-compose.test.yml exec -T mysql mysql \
+             -uroot \
+             -p${TEST_MYSQL_ROOT_PASSWORD} \
+             ${TEST_DB_NAME}
+           echo "Schema imported successfully"
+         else
+           echo "Warning: schema.sql not found"
+         fi
+    - name: Set application database variables for tests
+      run: |
+        echo "DB_USER=$TEST_DB_USER" >> $GITHUB_ENV
+        echo "DB_PASSWORD=$TEST_DB_PASSWORD" >> $GITHUB_ENV
+        echo "DB_NAME=$TEST_DB_NAME" >> $GITHUB_ENV
+        echo "DB_HOST=$TEST_DB_HOST" >> $GITHUB_ENV
     - name: Run tests
       run: |
-        # Add your test commands here
         python -m pytest tests/ || echo "No tests found"
       
     - name: Clean up Docker resources
@@ -87,28 +123,33 @@ jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    
+    permissions:
+      contents: read
+      packages: write
+    if: github.event_name == 'push' && github.ref == 'refs/heads/feature/containerized-mysql'
     steps:
     - uses: actions/checkout@v3
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
     
-    - name: Login to DockerHub
+    - name: Login to GitHub Container Registry
       uses: docker/login-action@v2
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-    
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build and push
       uses: docker/build-push-action@v4
       with:
         context: .
         push: true
-        tags: jakubcwiora/simple-meme-site:latest
+        tags: ghcr.io/${{ github.repository }}:containerized
         build-args: |
           DB_HOST=db
           DB_USER=${{ secrets.DB_USER }}
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           DB_NAME=${{ secrets.DB_NAME }}
+  
+
+
