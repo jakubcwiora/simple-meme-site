@@ -1,5 +1,5 @@
 # Use official Python image
-FROM python:3.11-slim
+FROM python:3.14.0b3-alpine3.21
 
 # Set working directory inside container
 WORKDIR /app
@@ -13,6 +13,12 @@ COPY . .
 
 # Expose port 5000 (Flask default)
 EXPOSE 5000
+
+# Only define non-sensitive environment variables
+ENV DB_HOST="" \
+    DB_USER="" \
+    DB_NAME=""
+
 
 # Run the Flask app
 CMD ["python", "main.py"]
